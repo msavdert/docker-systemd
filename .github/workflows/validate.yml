@@ -1,0 +1,82 @@
+name: Validate docker images
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "**.Dockerfile"
+      - ".github/workflows/validate.yml"
+      - ".github/workflows/build-and-push.yml"
+
+jobs:
+  lint:
+    name: Lint Dockerfiles
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the codebase
+        uses: actions/checkout@v4
+
+      - name: Run hadolint
+        run: |
+          set -euo pipefail
+          find . -name '*.Dockerfile' -print0 | while IFS= read -r -d '' dockerfile; do
+            docker run --rm -i --entrypoint hadolint hadolint/hadolint \
+              --ignore DL3007 \
+              --ignore DL3008 \
+              --ignore DL3033 \
+              --ignore DL3037 \
+              --ignore DL3041 \
+              --ignore DL4006 \
+              --ignore SC2086 \
+              - < "$dockerfile"
+          done
+
+  build:
+    name: Build test images
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tag: oraclelinux-7
+            dockerfile: oraclelinux/7.Dockerfile
+          - tag: oraclelinux-8
+            dockerfile: oraclelinux/8.Dockerfile
+          - tag: oraclelinux-9
+            dockerfile: oraclelinux/9.Dockerfile
+          - tag: oraclelinux-10
+            dockerfile: oraclelinux/10.Dockerfile
+          - tag: rockylinux-8
+            dockerfile: rockylinux/8.Dockerfile
+          - tag: rockylinux-9
+            dockerfile: rockylinux/9.Dockerfile
+          - tag: rockylinux-10
+            dockerfile: rockylinux/10.Dockerfile
+          - tag: ubuntu-20.04
+            dockerfile: ubuntu/20.04.Dockerfile
+          - tag: ubuntu-22.04
+            dockerfile: ubuntu/22.04.Dockerfile
+          - tag: ubuntu-24.04
+            dockerfile: ubuntu/24.04.Dockerfile
+          - tag: ubuntu-26.04
+            dockerfile: ubuntu/26.04.Dockerfile
+
+    steps:
+      - name: Checkout the codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.tag }}
+        uses: docker/build-push-action@v6
+        with:
+          cache-from: type=gha,scope=${{ matrix.tag }}-pr
+          cache-to: type=gha,mode=max,scope=${{ matrix.tag }}-pr
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: false
+          tags: local/${{ matrix.tag }}:pr

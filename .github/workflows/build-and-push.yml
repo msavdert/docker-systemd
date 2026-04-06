@@ -1,0 +1,84 @@
+name: Build docker images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.Dockerfile"
+      - ".github/workflows/build-and-push.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 1 * * 0"
+
+env:
+  IMAGE_NAME: melihsavdert/docker-systemd
+
+jobs:
+  docker:
+    name: Build and push
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tag: oraclelinux-7
+            dockerfile: oraclelinux/7.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: oraclelinux-8
+            dockerfile: oraclelinux/8.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: oraclelinux-9
+            dockerfile: oraclelinux/9.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: oraclelinux-10
+            dockerfile: oraclelinux/10.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: rockylinux-8
+            dockerfile: rockylinux/8.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: rockylinux-9
+            dockerfile: rockylinux/9.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: rockylinux-10
+            dockerfile: rockylinux/10.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: ubuntu-20.04
+            dockerfile: ubuntu/20.04.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: ubuntu-22.04
+            dockerfile: ubuntu/22.04.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: ubuntu-24.04
+            dockerfile: ubuntu/24.04.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: ubuntu-26.04
+            dockerfile: ubuntu/26.04.Dockerfile
+            platforms: linux/amd64,linux/arm64
+
+    steps:
+      - name: Checkout the codebase
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.tag }}
+        uses: docker/build-push-action@v6
+        with:
+          cache-from: type=gha,scope=${{ matrix.tag }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.tag }}
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platforms }}
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ matrix.tag }}

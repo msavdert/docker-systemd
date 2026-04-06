@@ -1,4 +1,4 @@
-FROM oraclelinux:9
+FROM rockylinux/rockylinux:10
 
 LABEL maintainer="Melih Savdert"
 

@@ -1,4 +1,4 @@
-FROM oraclelinux:9
+FROM oraclelinux:10
 
 LABEL maintainer="Melih Savdert"
 
