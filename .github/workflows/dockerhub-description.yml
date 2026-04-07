@@ -17,7 +17,7 @@ jobs:
       DOCKERHUB_REPOSITORY: melihsavdert/docker-systemd
     steps:
       - name: Checkout the codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: DockerHub Description
         id: dockerhub_description
