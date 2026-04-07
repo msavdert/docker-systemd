@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/msavdert/docker-systemd/compare/v1.1.0...v1.1.1) (2026-04-07)
+
+
+### Code Refactoring
+
+* Update supported tags and platforms section in README.md for clarity ([0813d73](https://github.com/msavdert/docker-systemd/commit/0813d734aa87e6883582f90d403ac01f1ff8dac3))
+
 ## [1.1.0](https://github.com/msavdert/docker-systemd/compare/v1.0.0...v1.1.0) (2026-04-07)
 
 
