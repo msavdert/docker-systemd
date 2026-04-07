@@ -1,7 +1,7 @@
 # Docker images with systemd support
 
-[![Build](https://github.com/msavdert/docker-linux-systemd/actions/workflows/build-and-push.yml/badge.svg?branch=main)](https://github.com/msavdert/docker-linux-systemd/actions/workflows/build-and-push.yml)
-[![Release](https://github.com/msavdert/docker-linux-systemd/actions/workflows/release.yml/badge.svg)](https://github.com/msavdert/docker-linux-systemd/actions/workflows/release.yml)
+[![Build](https://github.com/msavdert/docker-systemd/actions/workflows/build-and-push.yml/badge.svg?branch=main)](https://github.com/msavdert/docker-systemd/actions/workflows/build-and-push.yml)
+[![Release](https://github.com/msavdert/docker-systemd/actions/workflows/release.yml/badge.svg)](https://github.com/msavdert/docker-systemd/actions/workflows/release.yml)
 
 Curated multi-distribution Docker images with working systemd support for Ansible role testing, Molecule scenarios, and CI environments that need a realistic init system.
 
