@@ -107,7 +107,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build ${{ matrix.tag }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           cache-from: type=gha,scope=${{ matrix.tag }}-pr
           cache-to: type=gha,mode=max,scope=${{ matrix.tag }}-pr
