@@ -22,6 +22,60 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - tag: almalinux-8
+            dockerfile: almalinux/8.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: almalinux-9
+            dockerfile: almalinux/9.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: almalinux-10
+            dockerfile: almalinux/10.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: amazonlinux-2
+            dockerfile: amazonlinux/2.Dockerfile
+            platforms: linux/amd64
+          - tag: amazonlinux-2023
+            dockerfile: amazonlinux/2023.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: centos-7
+            dockerfile: centos/7.Dockerfile
+            platforms: linux/amd64
+          - tag: debian-10
+            dockerfile: debian/10.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: debian-11
+            dockerfile: debian/11.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: debian-12
+            dockerfile: debian/12.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: debian-13
+            dockerfile: debian/13.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: fedora-39
+            dockerfile: fedora/39.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: fedora-40
+            dockerfile: fedora/40.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: fedora-41
+            dockerfile: fedora/41.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: fedora-42
+            dockerfile: fedora/42.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: fedora-43
+            dockerfile: fedora/43.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: opensuse-15.6
+            dockerfile: opensuse/15.6.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: opensuse-16.0
+            dockerfile: opensuse/16.0.Dockerfile
+            platforms: linux/amd64,linux/arm64
+          - tag: opensuse-tumbleweed
+            dockerfile: opensuse/tumbleweed.Dockerfile
+            platforms: linux/amd64,linux/arm64
           - tag: oraclelinux-7
             dockerfile: oraclelinux/7.Dockerfile
             platforms: linux/amd64,linux/arm64

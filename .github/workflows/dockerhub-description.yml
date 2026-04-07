@@ -1,6 +1,7 @@
 name: Update DockerHub Description
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -12,15 +13,26 @@ jobs:
   dockerhub-description:
     name: Update DockerHub Description
     runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_REPOSITORY: melihsavdert/docker-systemd
     steps:
       - name: Checkout the codebase
         uses: actions/checkout@v4
 
       - name: DockerHub Description
+        id: dockerhub_description
+        continue-on-error: true
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: melihsavdert/docker-systemd
+          repository: ${{ env.DOCKERHUB_REPOSITORY }}
           short-description: ${{ github.event.repository.description }}
           enable-url-completion: true
+
+      - name: Explain DockerHub sync failure
+        if: ${{ steps.dockerhub_description.outcome == 'failure' }}
+        run: |
+          echo "Docker Hub description sync did not complete." >> "$GITHUB_STEP_SUMMARY"
+          echo "Expected repository: $DOCKERHUB_REPOSITORY" >> "$GITHUB_STEP_SUMMARY"
+          echo "Confirm the repository exists on Docker Hub and that DOCKERHUB_USERNAME/DOCKERHUB_TOKEN can update its metadata." >> "$GITHUB_STEP_SUMMARY"

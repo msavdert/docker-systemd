@@ -40,6 +40,42 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - tag: almalinux-8
+            dockerfile: almalinux/8.Dockerfile
+          - tag: almalinux-9
+            dockerfile: almalinux/9.Dockerfile
+          - tag: almalinux-10
+            dockerfile: almalinux/10.Dockerfile
+          - tag: amazonlinux-2
+            dockerfile: amazonlinux/2.Dockerfile
+          - tag: amazonlinux-2023
+            dockerfile: amazonlinux/2023.Dockerfile
+          - tag: centos-7
+            dockerfile: centos/7.Dockerfile
+          - tag: debian-10
+            dockerfile: debian/10.Dockerfile
+          - tag: debian-11
+            dockerfile: debian/11.Dockerfile
+          - tag: debian-12
+            dockerfile: debian/12.Dockerfile
+          - tag: debian-13
+            dockerfile: debian/13.Dockerfile
+          - tag: fedora-39
+            dockerfile: fedora/39.Dockerfile
+          - tag: fedora-40
+            dockerfile: fedora/40.Dockerfile
+          - tag: fedora-41
+            dockerfile: fedora/41.Dockerfile
+          - tag: fedora-42
+            dockerfile: fedora/42.Dockerfile
+          - tag: fedora-43
+            dockerfile: fedora/43.Dockerfile
+          - tag: opensuse-15.6
+            dockerfile: opensuse/15.6.Dockerfile
+          - tag: opensuse-16.0
+            dockerfile: opensuse/16.0.Dockerfile
+          - tag: opensuse-tumbleweed
+            dockerfile: opensuse/tumbleweed.Dockerfile
           - tag: oraclelinux-7
             dockerfile: oraclelinux/7.Dockerfile
           - tag: oraclelinux-8
