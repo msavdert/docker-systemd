@@ -7,6 +7,16 @@ Curated multi-distribution Docker images with working systemd support for Ansibl
 
 Images are published to `melihsavdert/docker-systemd` with distro-version tags.
 
+## Quick start
+
+```bash
+docker run -d --name systemd-ubuntu-24.04 \
+  --privileged \
+  -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+  --cgroupns=host \
+  melihsavdert/docker-systemd:ubuntu-24.04
+```
+
 ## Why this repository exists
 
 Most base images are intentionally minimal and do not behave like a real VM or host booted with systemd. That is a problem for infrastructure testing, especially when roles or playbooks expect:
@@ -38,13 +48,13 @@ No `latest` tag is published by design. Consumers should choose an explicit dist
 
 ## Image design rules
 
-All images in this repository follow the same baseline rules:
+Each image follows the same baseline contract:
 
-- install only the packages needed to make systemd usable in CI
-- prune non-essential unit wants to reduce boot noise and side effects
-- expose `/sys/fs/cgroup`
-- start with a systemd entrypoint instead of a shell wrapper
-- keep distro-specific behavior only where the base image requires it
+- install only the packages needed for a usable systemd-based test environment
+- prune non-essential unit wants to reduce noise, boot latency, and side effects
+- expose `/sys/fs/cgroup` for systemd compatibility
+- start with a native systemd entrypoint instead of shell-based wrappers
+- keep distro-specific behavior isolated to the cases where the base image requires it
 
 ## Usage
 
@@ -127,7 +137,7 @@ docker rm -f systemd-${DISTR}-${VERSION}
 
 ## Automation
 
-The repository ships with four distinct automation layers:
+The repository uses four focused automation layers:
 
 - `validate.yml` builds and lints images on pull requests
 - `build-and-push.yml` publishes multi-arch images on `main` and on a weekly schedule
