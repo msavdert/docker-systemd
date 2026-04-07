@@ -20,73 +20,21 @@ This repository keeps those images in one place with a consistent tagging model 
 
 ## Supported tags and platforms
 
-- `almalinux-8` (`linux/amd64`, `linux/arm64`)
-- `almalinux-9` (`linux/amd64`, `linux/arm64`)
-- `almalinux-10` (`linux/amd64`, `linux/arm64`)
-- `amazonlinux-2` (`linux/amd64`)
-- `amazonlinux-2023` (`linux/amd64`, `linux/arm64`)
-- `centos-7` (`linux/amd64`)
-- `debian-10` (`linux/amd64`, `linux/arm64`)
-- `debian-11` (`linux/amd64`, `linux/arm64`)
-- `debian-12` (`linux/amd64`, `linux/arm64`)
-- `debian-13` (`linux/amd64`, `linux/arm64`)
-- `fedora-39` (`linux/amd64`, `linux/arm64`)
-- `fedora-40` (`linux/amd64`, `linux/arm64`)
-- `fedora-41` (`linux/amd64`, `linux/arm64`)
-- `fedora-42` (`linux/amd64`, `linux/arm64`)
-- `fedora-43` (`linux/amd64`, `linux/arm64`)
-- `opensuse-15.6` (`linux/amd64`, `linux/arm64`)
-- `opensuse-16.0` (`linux/amd64`, `linux/arm64`)
-- `opensuse-tumbleweed` (`linux/amd64`, `linux/arm64`)
-- `oraclelinux-7` (`linux/amd64`, `linux/arm64`)
-- `oraclelinux-8` (`linux/amd64`, `linux/arm64`)
-- `oraclelinux-9` (`linux/amd64`, `linux/arm64`)
-- `oraclelinux-10` (`linux/amd64`, `linux/arm64`)
-- `rockylinux-8` (`linux/amd64`, `linux/arm64`)
-- `rockylinux-9` (`linux/amd64`, `linux/arm64`)
-- `rockylinux-10` (`linux/amd64`, `linux/arm64`)
-- `ubuntu-20.04` (`linux/amd64`, `linux/arm64`)
-- `ubuntu-22.04` (`linux/amd64`, `linux/arm64`)
-- `ubuntu-24.04` (`linux/amd64`, `linux/arm64`)
-- `ubuntu-26.04` (`linux/amd64`, `linux/arm64`)
+| Family | Versions | Platforms |
+| --- | --- | --- |
+| AlmaLinux | `8`, `9`, `10` | `linux/amd64`, `linux/arm64` |
+| Amazon Linux | `2`, `2023` | `2`: `linux/amd64`<br>`2023`: `linux/amd64`, `linux/arm64` |
+| CentOS | `7` | `linux/amd64` |
+| Debian | `10`, `11`, `12`, `13` | `linux/amd64`, `linux/arm64` |
+| Fedora | `39`, `40`, `41`, `42`, `43` | `linux/amd64`, `linux/arm64` |
+| openSUSE | `15.6`, `16.0`, `tumbleweed` | `linux/amd64`, `linux/arm64` |
+| Oracle Linux | `7`, `8`, `9`, `10` | `linux/amd64`, `linux/arm64` |
+| Rocky Linux | `8`, `9`, `10` | `linux/amd64`, `linux/arm64` |
+| Ubuntu | `20.04`, `22.04`, `24.04`, `26.04` | `linux/amd64`, `linux/arm64` |
 
 `ubuntu-26.04` is included because the upstream base tag exists already. If Canonical changes the devel track before the final LTS cut, rebuild behavior may also change.
 
 No `latest` tag is published by design. Consumers should choose an explicit distro-version tag so tests remain deterministic.
-
-## Repository layout
-
-Each distribution keeps flat, versioned Dockerfiles:
-
-- `almalinux/8.Dockerfile`
-- `almalinux/9.Dockerfile`
-- `almalinux/10.Dockerfile`
-- `amazonlinux/2.Dockerfile`
-- `amazonlinux/2023.Dockerfile`
-- `centos/7.Dockerfile`
-- `debian/10.Dockerfile`
-- `debian/11.Dockerfile`
-- `debian/12.Dockerfile`
-- `debian/13.Dockerfile`
-- `fedora/39.Dockerfile`
-- `fedora/40.Dockerfile`
-- `fedora/41.Dockerfile`
-- `fedora/42.Dockerfile`
-- `fedora/43.Dockerfile`
-- `opensuse/15.6.Dockerfile`
-- `opensuse/16.0.Dockerfile`
-- `opensuse/tumbleweed.Dockerfile`
-- `oraclelinux/7.Dockerfile`
-- `oraclelinux/8.Dockerfile`
-- `oraclelinux/9.Dockerfile`
-- `oraclelinux/10.Dockerfile`
-- `rockylinux/8.Dockerfile`
-- `rockylinux/9.Dockerfile`
-- `rockylinux/10.Dockerfile`
-- `ubuntu/20.04.Dockerfile`
-- `ubuntu/22.04.Dockerfile`
-- `ubuntu/24.04.Dockerfile`
-- `ubuntu/26.04.Dockerfile`
 
 ## Image design rules
 
