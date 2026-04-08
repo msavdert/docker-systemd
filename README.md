@@ -2,10 +2,23 @@
 
 [![Build](https://github.com/msavdert/docker-systemd/actions/workflows/build-and-push.yml/badge.svg?branch=main)](https://github.com/msavdert/docker-systemd/actions/workflows/build-and-push.yml)
 [![Release](https://github.com/msavdert/docker-systemd/actions/workflows/release.yml/badge.svg)](https://github.com/msavdert/docker-systemd/actions/workflows/release.yml)
+[![Docker Hub](https://img.shields.io/docker/pulls/melihsavdert/docker-systemd)](https://hub.docker.com/r/melihsavdert/docker-systemd)
 
-Curated multi-distribution Docker images with working systemd support for Ansible role testing, Molecule scenarios, and CI environments that need a realistic init system.
+Reusable multi-distribution Docker images with working systemd support for Ansible role testing, Molecule scenarios, CI jobs, and other cases where a minimal base image is not enough.
 
-Images are published to `melihsavdert/docker-systemd` with distro-version tags.
+All images are published under a single repository:
+
+```text
+melihsavdert/docker-systemd:<tag>
+```
+
+Examples:
+
+- `melihsavdert/docker-systemd:ubuntu-24.04`
+- `melihsavdert/docker-systemd:amazonlinux-2`
+- `melihsavdert/docker-systemd:oraclelinux-9`
+
+No `latest` tag is published by design. Use an explicit distro-version tag to keep tests deterministic.
 
 ## Quick start
 
@@ -19,18 +32,18 @@ docker run -d --name systemd-ubuntu-24.04 \
 
 ## Why this repository exists
 
-Most base images are intentionally minimal and do not behave like a real VM or host booted with systemd. That is a problem for infrastructure testing, especially when roles or playbooks expect:
+Most upstream container images are intentionally minimal. That is usually the right default, but it is not ideal when you need a realistic systemd-based environment for infrastructure testing.
+
+These images are built for cases where you need:
 
 - `systemctl` to work
-- service units to exist
-- cgroup mounting behavior compatible with systemd
-- a predictable distro-specific package manager and filesystem layout
+- distro-native package managers and filesystem layout
+- predictable service behavior during Molecule or CI runs
+- a consistent tagging model across multiple Linux families
 
-This repository keeps those images in one place with a consistent tagging model and repeatable build automation.
+## Supported tags
 
-## Supported tags and platforms
-
-All images are published under the same repository, `melihsavdert/docker-systemd`, and must be referenced with the full tag name such as `amazonlinux-2` or `ubuntu-24.04`.
+The tag name is always the full distro identifier, not just the version number. For example, use `amazonlinux-2`, not only `2`.
 
 | Family | Published tags | Platforms |
 | --- | --- | --- |
@@ -44,23 +57,27 @@ All images are published under the same repository, `melihsavdert/docker-systemd
 | Rocky Linux | `rockylinux-8`, `rockylinux-9`, `rockylinux-10` | `linux/amd64`, `linux/arm64` |
 | Ubuntu | `ubuntu-20.04`, `ubuntu-22.04`, `ubuntu-24.04`, `ubuntu-26.04` | `linux/amd64`, `linux/arm64` |
 
-`ubuntu-26.04` is included because the upstream base tag exists already. If Canonical changes the devel track before the final LTS cut, rebuild behavior may also change.
-
-No `latest` tag is published by design. Consumers should choose an explicit distro-version tag so tests remain deterministic.
-
-## Image design rules
-
-Each image follows the same baseline contract:
-
-- install only the packages needed for a usable systemd-based test environment
-- prune non-essential unit wants to reduce noise, boot latency, and side effects
-- expose `/sys/fs/cgroup` for systemd compatibility
-- start with a native systemd entrypoint instead of shell-based wrappers
-- keep distro-specific behavior isolated to the cases where the base image requires it
+`ubuntu-26.04` is included because the upstream base tag already exists. If Canonical changes the development track before final release, rebuild behavior may also change.
 
 ## Usage
 
-### With Molecule
+### Pull an image
+
+```bash
+docker pull melihsavdert/docker-systemd:amazonlinux-2
+```
+
+### Run a container
+
+```bash
+docker run -d --name systemd-rocky-10 \
+  --privileged \
+  -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+  --cgroupns=host \
+  melihsavdert/docker-systemd:rockylinux-10
+```
+
+### Use with Molecule
 
 ```yaml
 ---
@@ -95,27 +112,17 @@ verifier:
   name: ansible
 ```
 
-### Direct container usage
-
-```bash
-docker run -d --name systemd-ubuntu-24.04 \
-  --privileged \
-  -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
-  --cgroupns=host \
-  melihsavdert/docker-systemd:ubuntu-24.04
-```
-
-### Build and run
-
-- Build an image.
+## Build locally
 
 ```bash
 export DISTR='ubuntu'
 export VERSION='24.04'
-docker build -t docker-systemd:${DISTR}-${VERSION} -f ${DISTR}/${VERSION}.Dockerfile .
-```
 
-- Run a container.
+docker build \
+  -t docker-systemd:${DISTR}-${VERSION} \
+  -f ${DISTR}/${VERSION}.Dockerfile \
+  .
+```
 
 ```bash
 docker run -d --name systemd-${DISTR}-${VERSION} \
@@ -125,46 +132,41 @@ docker run -d --name systemd-${DISTR}-${VERSION} \
   docker-systemd:${DISTR}-${VERSION}
 ```
 
-- Enter the container.
-
 ```bash
 docker exec -it systemd-${DISTR}-${VERSION} /bin/bash
 ```
 
-- Remove the container.
+## Image rules
 
-```bash
-docker rm -f systemd-${DISTR}-${VERSION}
-```
+Each image follows the same baseline approach:
+
+- install only what is needed for a usable systemd-based test environment
+- prune unnecessary unit wants to reduce noise and boot overhead
+- keep distro-specific handling isolated to the places where it is required
+- use native systemd startup instead of shell wrapper entrypoints
 
 ## Automation
 
-The repository uses four focused automation layers:
+The repository is maintained with four focused workflows:
 
-- `validate.yml` builds and lints images on pull requests
-- `build-and-push.yml` publishes multi-arch images on `main` and on a weekly schedule
-- `release.yml` creates GitHub releases and updates `CHANGELOG.md` using semantic-release
-- `dockerhub-description.yml` syncs `README.md` to Docker Hub repository metadata
+- `validate.yml` lints Dockerfiles and test-builds images on pull requests
+- `build-and-push.yml` publishes images on `main` and on a weekly schedule
+- `release.yml` manages GitHub releases and updates `CHANGELOG.md` with semantic-release
+- `dockerhub-description.yml` syncs `README.md` to Docker Hub
 
-## Release workflow
+## Release notes
 
-Releases are generated with semantic-release. Conventional Commit messages drive:
+Releases are generated with semantic-release and conventional commits.
 
-- version bumping
-- GitHub releases
-- `CHANGELOG.md` updates
-
-Useful commit types:
-
-- `feat:` for new images or new supported versions
+- `feat:` for new images or supported versions
 - `fix:` for image fixes
 - `refactor:` for internal cleanup with user-visible effect
-- `docs(README):` for documentation patches that should produce a patch release
+- `docs(README):` for README changes that should produce a patch release
 
 ## Maintenance notes
 
-- Dependabot is configured only for GitHub Actions updates. That keeps workflow actions current without creating noisy dependency churn in the images themselves.
-- If Docker Hub description sync reports `Not Found`, verify that the Docker Hub repository exists and optionally set a repository variable named `DOCKERHUB_REPOSITORY` if the target repository name differs from `melihsavdert/docker-systemd`.
+- Dependabot is configured only for GitHub Actions updates.
+- If Docker Hub description sync reports `Not Found`, confirm that the target Docker Hub repository exists and that the configured credentials can update its metadata.
 
 ## License
 
