@@ -30,17 +30,19 @@ This repository keeps those images in one place with a consistent tagging model 
 
 ## Supported tags and platforms
 
-| Family | Versions | Platforms |
+All images are published under the same repository, `melihsavdert/docker-systemd`, and must be referenced with the full tag name such as `amazonlinux-2` or `ubuntu-24.04`.
+
+| Family | Published tags | Platforms |
 | --- | --- | --- |
-| AlmaLinux | `8`, `9`, `10` | `linux/amd64`, `linux/arm64` |
-| Amazon Linux | `2`, `2023` | `2`: `linux/amd64`<br>`2023`: `linux/amd64`, `linux/arm64` |
-| CentOS | `7` | `linux/amd64` |
-| Debian | `10`, `11`, `12`, `13` | `linux/amd64`, `linux/arm64` |
-| Fedora | `39`, `40`, `41`, `42`, `43` | `linux/amd64`, `linux/arm64` |
-| openSUSE | `15.6`, `16.0`, `tumbleweed` | `linux/amd64`, `linux/arm64` |
-| Oracle Linux | `7`, `8`, `9`, `10` | `linux/amd64`, `linux/arm64` |
-| Rocky Linux | `8`, `9`, `10` | `linux/amd64`, `linux/arm64` |
-| Ubuntu | `20.04`, `22.04`, `24.04`, `26.04` | `linux/amd64`, `linux/arm64` |
+| AlmaLinux | `almalinux-8`, `almalinux-9`, `almalinux-10` | `linux/amd64`, `linux/arm64` |
+| Amazon Linux | `amazonlinux-2`, `amazonlinux-2023` | `amazonlinux-2`: `linux/amd64`<br>`amazonlinux-2023`: `linux/amd64`, `linux/arm64` |
+| CentOS | `centos-7` | `linux/amd64` |
+| Debian | `debian-10`, `debian-11`, `debian-12`, `debian-13` | `linux/amd64`, `linux/arm64` |
+| Fedora | `fedora-39`, `fedora-40`, `fedora-41`, `fedora-42`, `fedora-43` | `linux/amd64`, `linux/arm64` |
+| openSUSE | `opensuse-15.6`, `opensuse-16.0`, `opensuse-tumbleweed` | `linux/amd64`, `linux/arm64` |
+| Oracle Linux | `oraclelinux-7`, `oraclelinux-8`, `oraclelinux-9`, `oraclelinux-10` | `linux/amd64`, `linux/arm64` |
+| Rocky Linux | `rockylinux-8`, `rockylinux-9`, `rockylinux-10` | `linux/amd64`, `linux/arm64` |
+| Ubuntu | `ubuntu-20.04`, `ubuntu-22.04`, `ubuntu-24.04`, `ubuntu-26.04` | `linux/amd64`, `linux/arm64` |
 
 `ubuntu-26.04` is included because the upstream base tag exists already. If Canonical changes the devel track before the final LTS cut, rebuild behavior may also change.
 
