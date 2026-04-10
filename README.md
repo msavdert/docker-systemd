@@ -6,10 +6,13 @@
 
 Reusable multi-distribution Docker images with working systemd support for Ansible role testing, Molecule scenarios, CI jobs, and other cases where a minimal base image is not enough.
 
-All images are published under a single repository:
+Source repository: https://github.com/msavdert/docker-systemd
+
+Images are published to both registries:
 
 ```text
 melihsavdert/docker-systemd:<tag>
+ghcr.io/msavdert/docker-systemd:<tag>
 ```
 
 Examples:
@@ -27,7 +30,7 @@ docker run -d --name systemd-ubuntu-24.04 \
   --privileged \
   -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
   --cgroupns=host \
-  melihsavdert/docker-systemd:ubuntu-24.04
+  ghcr.io/msavdert/docker-systemd:ubuntu-24.04
 ```
 
 ## Why this repository exists
@@ -65,6 +68,10 @@ The tag name is always the full distro identifier, not just the version number. 
 
 ```bash
 docker pull melihsavdert/docker-systemd:amazonlinux-2
+```
+
+```bash
+docker pull ghcr.io/msavdert/docker-systemd:amazonlinux-2
 ```
 
 ### Run a container
@@ -150,7 +157,7 @@ Each image follows the same baseline approach:
 The repository is maintained with four focused workflows:
 
 - `validate.yml` lints Dockerfiles and test-builds images on pull requests
-- `build-and-push.yml` publishes images on `main` and on a weekly schedule
+- `build-and-push.yml` publishes images to Docker Hub and GHCR on `main` and on a weekly schedule
 - `release.yml` manages GitHub releases and updates `CHANGELOG.md` with semantic-release
 - `dockerhub-description.yml` syncs `README.md` to Docker Hub
 
@@ -166,6 +173,7 @@ Releases are generated with semantic-release and conventional commits.
 ## Maintenance notes
 
 - Dependabot is configured only for GitHub Actions updates.
+- GHCR packages are published from GitHub Actions with `GITHUB_TOKEN` and linked back to this repository through OCI source metadata.
 - If Docker Hub description sync reports `Not Found`, confirm that the target Docker Hub repository exists and that the configured credentials can update its metadata.
 
 ## License

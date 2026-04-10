@@ -11,8 +11,14 @@ on:
   schedule:
     - cron: "0 1 * * 0"
 
+permissions:
+  contents: read
+  packages: write
+
 env:
-  IMAGE_NAME: melihsavdert/docker-systemd
+  DOCKERHUB_IMAGE_NAME: melihsavdert/docker-systemd
+  GHCR_IMAGE_NAME: ghcr.io/msavdert/docker-systemd
+  IMAGE_DESCRIPTION: Reusable multi-distribution Docker images with working systemd support for Ansible role testing, Molecule scenarios, CI jobs, and other cases where a minimal base image is not enough.
 
 jobs:
   docker:
@@ -126,6 +132,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push ${{ matrix.tag }}
         uses: docker/build-push-action@v7
         with:
@@ -133,6 +146,12 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.tag }}
           context: .
           file: ${{ matrix.dockerfile }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=${{ env.IMAGE_DESCRIPTION }}
+            org.opencontainers.image.licenses=GPL-3.0
           platforms: ${{ matrix.platforms }}
           push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ matrix.tag }}
+          tags: |
+            ${{ env.DOCKERHUB_IMAGE_NAME }}:${{ matrix.tag }}
+            ${{ env.GHCR_IMAGE_NAME }}:${{ matrix.tag }}
