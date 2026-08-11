@@ -21,100 +21,67 @@ env:
   IMAGE_DESCRIPTION: Reusable multi-distribution Docker images with working systemd support for Ansible role testing, Molecule scenarios, CI jobs, and other cases where a minimal base image is not enough.
 
 jobs:
+  prepare:
+    name: Prepare build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      is-empty: ${{ steps.matrix.outputs.is-empty }}
+    steps:
+      - name: Checkout the codebase
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Build matrix
+        id: matrix
+        run: |
+          set -euo pipefail
+
+          FULL_MATRIX=$(jq -c '.' .github/matrix.json)
+          USE_FULL=false
+
+          if [ "${{ github.event_name }}" != "push" ]; then
+            USE_FULL=true
+          else
+            BEFORE="${{ github.event.before }}"
+            if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              USE_FULL=true
+            elif ! git diff --name-only "$BEFORE" "${{ github.sha }}" > /tmp/changed.txt; then
+              USE_FULL=true
+            fi
+          fi
+
+          if [ "$USE_FULL" = "true" ]; then
+            MATRIX="$FULL_MATRIX"
+          elif grep -qx '.github/workflows/build-and-push.yml' /tmp/changed.txt; then
+            MATRIX="$FULL_MATRIX"
+          else
+            MATRIX=$(jq -c --rawfile changed /tmp/changed.txt '
+              ($changed | rtrimstr("\n") | split("\n")) as $files
+              | [ .[] | select(.dockerfile as $d | $files | index($d) != null) ]
+            ' .github/matrix.json)
+          fi
+
+          echo "Selected matrix:"
+          echo "$MATRIX" | jq .
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          if [ "$MATRIX" = "[]" ]; then
+            echo "is-empty=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is-empty=false" >> "$GITHUB_OUTPUT"
+          fi
+
   docker:
     name: Build and push
+    needs: prepare
+    if: needs.prepare.outputs.is-empty != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - tag: almalinux-8
-            dockerfile: almalinux/8.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: almalinux-9
-            dockerfile: almalinux/9.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: almalinux-10
-            dockerfile: almalinux/10.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: amazonlinux-2
-            dockerfile: amazonlinux/2.Dockerfile
-            platforms: linux/amd64
-          - tag: amazonlinux-2023
-            dockerfile: amazonlinux/2023.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: centos-7
-            dockerfile: centos/7.Dockerfile
-            platforms: linux/amd64
-          - tag: debian-10
-            dockerfile: debian/10.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: debian-11
-            dockerfile: debian/11.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: debian-12
-            dockerfile: debian/12.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: debian-13
-            dockerfile: debian/13.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: fedora-39
-            dockerfile: fedora/39.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: fedora-40
-            dockerfile: fedora/40.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: fedora-41
-            dockerfile: fedora/41.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: fedora-42
-            dockerfile: fedora/42.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: fedora-43
-            dockerfile: fedora/43.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: opensuse-15.6
-            dockerfile: opensuse/15.6.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: opensuse-16.0
-            dockerfile: opensuse/16.0.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: opensuse-tumbleweed
-            dockerfile: opensuse/tumbleweed.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: oraclelinux-7
-            dockerfile: oraclelinux/7.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: oraclelinux-8
-            dockerfile: oraclelinux/8.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: oraclelinux-9
-            dockerfile: oraclelinux/9.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: oraclelinux-10
-            dockerfile: oraclelinux/10.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: rockylinux-8
-            dockerfile: rockylinux/8.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: rockylinux-9
-            dockerfile: rockylinux/9.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: rockylinux-10
-            dockerfile: rockylinux/10.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: ubuntu-20.04
-            dockerfile: ubuntu/20.04.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: ubuntu-22.04
-            dockerfile: ubuntu/22.04.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: ubuntu-24.04
-            dockerfile: ubuntu/24.04.Dockerfile
-            platforms: linux/amd64,linux/arm64
-          - tag: ubuntu-26.04
-            dockerfile: ubuntu/26.04.Dockerfile
-            platforms: linux/amd64,linux/arm64
+        include: ${{ fromJson(needs.prepare.outputs.matrix) }}
 
     steps:
       - name: Checkout the codebase
