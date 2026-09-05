@@ -62,6 +62,19 @@ The tag name is always the full distro identifier, not just the version number. 
 
 `ubuntu-26.04` is included because the upstream base tag already exists. If Canonical changes the development track before final release, rebuild behavior may also change.
 
+## End-of-life images
+
+These tags are frozen because their upstream distributions are end of life:
+
+- `amazonlinux-2`
+- `centos-7`
+- `debian-10`
+- `fedora-39`
+- `fedora-40`
+- `fedora-41`
+
+They stay published so existing pipelines keep working, but they are no longer rebuilt on the weekly schedule. They are rebuilt only when their own Dockerfile changes, so their contents age and may contain unpatched CVEs. Use them for legacy testing only, and prefer a supported tag for anything new. The weekly schedule and the change detection that selects which images are built are described in `.github/workflows/build-and-push.yml`.
+
 ## Usage
 
 ### Pull an image
@@ -157,7 +170,7 @@ Each image follows the same baseline approach:
 The repository is maintained with four focused workflows:
 
 - `validate.yml` lints Dockerfiles and test-builds images on pull requests
-- `build-and-push.yml` publishes images to Docker Hub and GHCR on `main` and on a weekly schedule
+- `build-and-push.yml` publishes images to Docker Hub and GHCR on `main` and on a weekly schedule; scheduled builds skip end-of-life images
 - `release.yml` manages GitHub releases and updates `CHANGELOG.md` with semantic-release
 - `dockerhub-description.yml` syncs `README.md` to Docker Hub
 

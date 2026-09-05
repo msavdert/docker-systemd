@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "**.Dockerfile"
+      - ".github/matrix.json"
       - ".github/workflows/validate.yml"
       - ".github/workflows/build-and-push.yml"
 
@@ -61,7 +62,9 @@ jobs:
 
           if [ "$USE_FULL" = "true" ]; then
             MATRIX="$FULL_MATRIX"
-          elif grep -qx '.github/workflows/validate.yml' /tmp/changed.txt || grep -qx '.github/workflows/build-and-push.yml' /tmp/changed.txt; then
+          elif grep -qx '.github/workflows/validate.yml' /tmp/changed.txt \
+            || grep -qx '.github/workflows/build-and-push.yml' /tmp/changed.txt \
+            || grep -qx '.github/matrix.json' /tmp/changed.txt; then
             MATRIX="$FULL_MATRIX"
           else
             MATRIX=$(jq -c --rawfile changed /tmp/changed.txt '

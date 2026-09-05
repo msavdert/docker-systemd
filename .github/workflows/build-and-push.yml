@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "**.Dockerfile"
+      - ".github/matrix.json"
       - ".github/workflows/build-and-push.yml"
   workflow_dispatch:
   schedule:
@@ -39,9 +40,13 @@ jobs:
           set -euo pipefail
 
           FULL_MATRIX=$(jq -c '.' .github/matrix.json)
+          SUPPORTED_MATRIX=$(jq -c '[ .[] | select(.eol != true) ]' .github/matrix.json)
           USE_FULL=false
+          USE_SUPPORTED=false
 
-          if [ "${{ github.event_name }}" != "push" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            USE_SUPPORTED=true
+          elif [ "${{ github.event_name }}" != "push" ]; then
             USE_FULL=true
           else
             BEFORE="${{ github.event.before }}"
@@ -52,9 +57,12 @@ jobs:
             fi
           fi
 
-          if [ "$USE_FULL" = "true" ]; then
+          if [ "$USE_SUPPORTED" = "true" ]; then
+            MATRIX="$SUPPORTED_MATRIX"
+          elif [ "$USE_FULL" = "true" ]; then
             MATRIX="$FULL_MATRIX"
-          elif grep -qx '.github/workflows/build-and-push.yml' /tmp/changed.txt; then
+          elif grep -qx '.github/workflows/build-and-push.yml' /tmp/changed.txt \
+            || grep -qx '.github/matrix.json' /tmp/changed.txt; then
             MATRIX="$FULL_MATRIX"
           else
             MATRIX=$(jq -c --rawfile changed /tmp/changed.txt '
@@ -87,6 +95,10 @@ jobs:
       - name: Checkout the codebase
         uses: actions/checkout@v7
 
+      - name: Resolve build timestamp
+        id: meta
+        run: echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
@@ -117,6 +129,10 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=${{ env.IMAGE_DESCRIPTION }}
             org.opencontainers.image.licenses=GPL-3.0
+            org.opencontainers.image.title=systemd-${{ matrix.tag }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
           platforms: ${{ matrix.platforms }}
           push: true
           tags: |
