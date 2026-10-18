@@ -9,12 +9,25 @@ on:
       - ".github/matrix.json"
       - ".github/workflows/build-and-push.yml"
   workflow_dispatch:
+    inputs:
+      fresh:
+        description: Disable the layer cache and pull fresh base images
+        type: boolean
+        default: false
   schedule:
     - cron: "0 1 * * 0"
 
 permissions:
   contents: read
   packages: write
+
+# Never cancel a run in flight: a cancelled push step can leave Docker Hub and
+# GHCR with different images for the same tag. A newer run queues behind it.
+# GitHub keeps only one queued run per group, so a push queued behind a running
+# build can be replaced by a later one; the weekly rebuild catches up.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   DOCKERHUB_IMAGE_NAME: melihsavdert/docker-systemd
@@ -30,7 +43,7 @@ jobs:
       is-empty: ${{ steps.matrix.outputs.is-empty }}
     steps:
       - name: Checkout the codebase
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -82,7 +95,7 @@ jobs:
           fi
 
   docker:
-    name: Build and push
+    name: Build and push ${{ matrix.tag }}
     needs: prepare
     if: needs.prepare.outputs.is-empty != 'true'
     runs-on: ubuntu-latest
@@ -93,36 +106,184 @@ jobs:
 
     steps:
       - name: Checkout the codebase
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Resolve build timestamp
+      - name: Resolve build parameters
         id: meta
-        run: echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+          FRESH_INPUT: ${{ inputs.fresh }}
+          TAG: ${{ matrix.tag }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+          # Weekly and manual-fresh rebuilds must not replay cached layers: a stale
+          # apt layer hides repository changes. The smoke build hands its fresh
+          # amd64 layers to the push build through a run-scoped cache, and the push
+          # build then refreshes the shared per-tag scope that main-push builds read.
+          if [ "$EVENT" = "schedule" ] || [ "$FRESH_INPUT" = "true" ]; then
+            {
+              echo "no-cache=true"
+              echo "pull=true"
+              echo "smoke-cache-from="
+              echo "smoke-cache-to=type=gha,mode=min,scope=${TAG}-fresh-${RUN_ID},ignore-error=true"
+              echo "push-cache-from=type=gha,scope=${TAG}-fresh-${RUN_ID}"
+              echo "push-cache-to=type=gha,mode=max,scope=${TAG},ignore-error=true"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "no-cache=false"
+              echo "pull=false"
+              echo "smoke-cache-from=type=gha,scope=${TAG}"
+              echo "smoke-cache-to=type=gha,mode=max,scope=${TAG},ignore-error=true"
+              echo "push-cache-from=type=gha,scope=${TAG}"
+              echo "push-cache-to=type=gha,mode=max,scope=${TAG},ignore-error=true"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+          # Dated tags (UTC) for scheduled and main-push builds only; empty otherwise.
+          if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "push" ]; then
+            DATE=$(date -u +%Y%m%d)
+            echo "dated-dockerhub=${DOCKERHUB_IMAGE_NAME}:${TAG}-${DATE}" >> "$GITHUB_OUTPUT"
+            echo "dated-ghcr=${GHCR_IMAGE_NAME}:${TAG}-${DATE}" >> "$GITHUB_OUTPUT"
+          else
+            echo "dated-dockerhub=" >> "$GITHUB_OUTPUT"
+            echo "dated-ghcr=" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push ${{ matrix.tag }}
-        uses: docker/build-push-action@v7
+      # build-push-action is an action, so nick-fields/retry cannot wrap it. Each
+      # build is run twice instead: the first attempt may fail without failing the
+      # job, the second runs only after a failed first attempt and decides the job.
+      # This absorbs transient mirror errors (opensuse-tumbleweed 404s mid-update).
+      - name: Build ${{ matrix.tag }} for smoke test
+        id: smoke-build-1
+        continue-on-error: true
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          cache-from: type=gha,scope=${{ matrix.tag }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.tag }}
+          cache-from: ${{ steps.meta.outputs.smoke-cache-from }}
+          cache-to: ${{ steps.meta.outputs.smoke-cache-to }}
+          context: .
+          file: ${{ matrix.dockerfile }}
+          load: true
+          no-cache: ${{ steps.meta.outputs.no-cache }}
+          platforms: linux/amd64
+          pull: ${{ steps.meta.outputs.pull }}
+          push: false
+          tags: local/${{ matrix.tag }}:smoke
+
+      - name: Wait before retrying the smoke build
+        if: steps.smoke-build-1.outcome == 'failure'
+        run: sleep 30
+
+      - name: Build ${{ matrix.tag }} for smoke test (retry)
+        if: steps.smoke-build-1.outcome == 'failure'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          cache-from: ${{ steps.meta.outputs.smoke-cache-from }}
+          cache-to: ${{ steps.meta.outputs.smoke-cache-to }}
+          context: .
+          file: ${{ matrix.dockerfile }}
+          load: true
+          no-cache: ${{ steps.meta.outputs.no-cache }}
+          platforms: linux/amd64
+          pull: ${{ steps.meta.outputs.pull }}
+          push: false
+          tags: local/${{ matrix.tag }}:smoke
+
+      # End-of-life images are frozen and may ship a systemd too old for
+      # `is-system-running --wait` (oraclelinux-7), so they skip the gate.
+      - name: Smoke test ${{ matrix.tag }}
+        id: smoke
+        if: matrix.eol != true
+        env:
+          SMOKE_IMAGE: local/${{ matrix.tag }}:smoke
+          CONTAINER: smoke-${{ matrix.tag }}
+        run: |
+          set -euo pipefail
+
+          # Same flags as the README quick start.
+          docker run -d --name "$CONTAINER" \
+            --privileged \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            --cgroupns=host \
+            "$SMOKE_IMAGE"
+
+          DEADLINE=$(( $(date +%s) + 180 ))
+          STATE=""
+          while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+            if [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER")" != "true" ]; then
+              echo "Container exited before systemd finished booting."
+              exit 1
+            fi
+
+            # An empty result means exec failed (systemd not ready yet); retry.
+            STATE=$(timeout 60 docker exec "$CONTAINER" systemctl is-system-running --wait 2>/dev/null || true)
+            echo "systemd state: ${STATE:-<none>}"
+
+            case "$STATE" in
+              running)
+                exit 0
+                ;;
+              degraded)
+                docker exec "$CONTAINER" systemctl --failed --no-pager || true
+                exit 0
+                ;;
+              ""|offline|initializing|starting)
+                sleep 2
+                ;;
+              *)
+                echo "Unexpected systemd state: $STATE"
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "Timed out waiting for systemd; last state: ${STATE:-<none>}"
+          exit 1
+
+      - name: Dump container diagnostics
+        if: failure() && steps.smoke.outcome == 'failure'
+        env:
+          CONTAINER: smoke-${{ matrix.tag }}
+        run: |
+          docker exec "$CONTAINER" journalctl -b --no-pager 2>&1 | tail -50 || true
+          docker logs --tail 50 "$CONTAINER" 2>&1 || true
+
+      - name: Remove smoke test container
+        if: always()
+        env:
+          CONTAINER: smoke-${{ matrix.tag }}
+        run: docker rm -f "$CONTAINER" || true
+
+      - name: Build and push ${{ matrix.tag }}
+        id: push-1
+        continue-on-error: true
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          cache-from: ${{ steps.meta.outputs.push-cache-from }}
+          cache-to: ${{ steps.meta.outputs.push-cache-to }}
           context: .
           file: ${{ matrix.dockerfile }}
           labels: |
@@ -134,7 +295,87 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.url=https://github.com/${{ github.repository }}
           platforms: ${{ matrix.platforms }}
+          provenance: true
+          pull: ${{ steps.meta.outputs.pull }}
           push: true
+          sbom: true
           tags: |
             ${{ env.DOCKERHUB_IMAGE_NAME }}:${{ matrix.tag }}
             ${{ env.GHCR_IMAGE_NAME }}:${{ matrix.tag }}
+            ${{ steps.meta.outputs.dated-dockerhub }}
+            ${{ steps.meta.outputs.dated-ghcr }}
+
+      - name: Wait before retrying the push build
+        if: steps.push-1.outcome == 'failure'
+        run: sleep 30
+
+      - name: Build and push ${{ matrix.tag }} (retry)
+        if: steps.push-1.outcome == 'failure'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          cache-from: ${{ steps.meta.outputs.push-cache-from }}
+          cache-to: ${{ steps.meta.outputs.push-cache-to }}
+          context: .
+          file: ${{ matrix.dockerfile }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=${{ env.IMAGE_DESCRIPTION }}
+            org.opencontainers.image.licenses=GPL-3.0
+            org.opencontainers.image.title=systemd-${{ matrix.tag }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+          platforms: ${{ matrix.platforms }}
+          provenance: true
+          pull: ${{ steps.meta.outputs.pull }}
+          push: true
+          sbom: true
+          tags: |
+            ${{ env.DOCKERHUB_IMAGE_NAME }}:${{ matrix.tag }}
+            ${{ env.GHCR_IMAGE_NAME }}:${{ matrix.tag }}
+            ${{ steps.meta.outputs.dated-dockerhub }}
+            ${{ steps.meta.outputs.dated-ghcr }}
+
+  notify-failure:
+    name: Report scheduled build failure
+    needs:
+      - prepare
+      - docker
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # list the failed jobs of this run
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.run_id }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Open or update the failure issue
+        run: |
+          set -euo pipefail
+
+          TITLE="Scheduled build failed"
+          LABEL="ci-failure"
+
+          FAILED=$(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}/jobs" --paginate \
+            --jq '.jobs[] | select(.conclusion == "failure") | .name' \
+            | sed 's/^Build and push /- /' || true)
+          if [ -z "$FAILED" ]; then
+            FAILED="- (could not determine the failed jobs; see the run)"
+          fi
+
+          BODY=$(printf 'Scheduled run: %s\n\nFailed:\n%s\n' "$RUN_URL" "$FAILED")
+
+          gh label create "$LABEL" --color B60205 \
+            --description "A CI workflow failed and needs attention" 2>/dev/null || true
+
+          EXISTING=$(gh issue list --label "$LABEL" --state open --search "\"$TITLE\" in:title" \
+            --json number,title --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty")
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --label "$LABEL" --body "$BODY"
+          fi

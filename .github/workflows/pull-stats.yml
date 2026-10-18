@@ -1,0 +1,87 @@
+name: Pull stats
+
+# Appends one row per day (UTC) with the Docker Hub pull and star counts to
+# stats/pull-counts.csv on the orphan branch "stats", so main history stays
+# clean. GHCR download counts are not exposed by any API and are not scraped.
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pull-stats
+  cancel-in-progress: false
+
+jobs:
+  record:
+    name: Record Docker Hub counts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      DOCKERHUB_REPOSITORY: melihsavdert/docker-systemd
+      STATS_BRANCH: stats
+      STATS_FILE: stats/pull-counts.csv
+    steps:
+      - name: Checkout the codebase
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Fetch Docker Hub counts
+        id: hub
+        run: |
+          body="$(curl --fail --silent --show-error --location \
+            --retry 3 --retry-delay 5 --max-time 30 \
+            "https://hub.docker.com/v2/repositories/${DOCKERHUB_REPOSITORY}/")"
+          pulls="$(jq -r '.pull_count' <<<"${body}")"
+          stars="$(jq -r '.star_count' <<<"${body}")"
+          for pair in "pull_count=${pulls}" "star_count=${stars}"; do
+            if ! [[ "${pair#*=}" =~ ^[0-9]+$ ]]; then
+              echo "::error::Docker Hub returned an empty or non-numeric ${pair%%=*}: '${pair#*=}'"
+              exit 1
+            fi
+          done
+          {
+            echo "date=$(date -u +%F)"
+            echo "pulls=${pulls}"
+            echo "stars=${stars}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Switch to the stats branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin "${STATS_BRANCH}" >/dev/null; then
+            git fetch --depth 1 origin "${STATS_BRANCH}"
+            git checkout -B "${STATS_BRANCH}" FETCH_HEAD
+          else
+            echo "Branch ${STATS_BRANCH} does not exist yet, creating an orphan branch"
+            git checkout --orphan "${STATS_BRANCH}"
+            git rm -rf --quiet .
+            git clean -fdxq
+          fi
+
+      - name: Append today's row
+        env:
+          STAT_DATE: ${{ steps.hub.outputs.date }}
+          STAT_PULLS: ${{ steps.hub.outputs.pulls }}
+          STAT_STARS: ${{ steps.hub.outputs.stars }}
+        run: |
+          mkdir -p "$(dirname "${STATS_FILE}")"
+          if [ ! -s "${STATS_FILE}" ]; then
+            echo "date,pull_count,star_count" > "${STATS_FILE}"
+          fi
+          if grep -q "^${STAT_DATE}," "${STATS_FILE}"; then
+            echo "Row for ${STAT_DATE} already exists, nothing to do"
+            exit 0
+          fi
+          echo "${STAT_DATE},${STAT_PULLS},${STAT_STARS}" >> "${STATS_FILE}"
+          git add "${STATS_FILE}"
+          git commit -m "stats: ${STAT_DATE} pulls=${STAT_PULLS} stars=${STAT_STARS}"
+          git push origin "HEAD:refs/heads/${STATS_BRANCH}"

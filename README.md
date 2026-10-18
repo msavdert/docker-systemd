@@ -51,16 +51,22 @@ The tag name is always the full distro identifier, not just the version number. 
 | Family | Published tags | Platforms |
 | --- | --- | --- |
 | AlmaLinux | `almalinux-8`, `almalinux-9`, `almalinux-10` | `linux/amd64`, `linux/arm64` |
-| Amazon Linux | `amazonlinux-2`, `amazonlinux-2023` | `amazonlinux-2`: `linux/amd64`<br>`amazonlinux-2023`: `linux/amd64`, `linux/arm64` |
+| Amazon Linux | `amazonlinux-2`, `amazonlinux-2023`, `amazonlinux-2027` (preview) | `amazonlinux-2`: `linux/amd64`<br>`amazonlinux-2023`, `amazonlinux-2027`: `linux/amd64`, `linux/arm64` |
 | CentOS | `centos-7` | `linux/amd64` |
-| Debian | `debian-10`, `debian-11`, `debian-12`, `debian-13` | `linux/amd64`, `linux/arm64` |
-| Fedora | `fedora-39`, `fedora-40`, `fedora-41`, `fedora-42`, `fedora-43` | `linux/amd64`, `linux/arm64` |
-| openSUSE | `opensuse-15.6`, `opensuse-16.0`, `opensuse-tumbleweed` | `linux/amd64`, `linux/arm64` |
+| Debian | `debian-10`, `debian-11`, `debian-12`, `debian-13`, `debian-forky` (preview) | `linux/amd64`, `linux/arm64` |
+| Fedora | `fedora-39`, `fedora-40`, `fedora-41`, `fedora-42`, `fedora-43`, `fedora-44`, `fedora-45` (preview) | `linux/amd64`, `linux/arm64` |
+| openSUSE | `opensuse-15.6`, `opensuse-16.0`, `opensuse-16.1`, `opensuse-tumbleweed` | `linux/amd64`, `linux/arm64` |
 | Oracle Linux | `oraclelinux-7`, `oraclelinux-8`, `oraclelinux-9`, `oraclelinux-10` | `linux/amd64`, `linux/arm64` |
 | Rocky Linux | `rockylinux-8`, `rockylinux-9`, `rockylinux-10` | `linux/amd64`, `linux/arm64` |
-| Ubuntu | `ubuntu-20.04`, `ubuntu-22.04`, `ubuntu-24.04`, `ubuntu-26.04` | `linux/amd64`, `linux/arm64` |
+| Ubuntu | `ubuntu-20.04`, `ubuntu-22.04`, `ubuntu-24.04`, `ubuntu-26.04`, `ubuntu-26.10` | `linux/amd64`, `linux/arm64` |
 
-`ubuntu-26.04` is included because the upstream base tag already exists. If Canonical changes the development track before final release, rebuild behavior may also change.
+Tags marked "preview" track a pre-release or moving upstream and carry no stability guarantee:
+
+- `fedora-45`: Fedora 45 is in beta until its final release.
+- `amazonlinux-2027`: AWS public preview, not for production. General availability has not been announced.
+- `debian-forky`: Debian testing. It has no release date, and its content changes with each weekly rebuild.
+
+`ubuntu-26.10` is an interim release, supported until about July 2027.
 
 ## End-of-life images
 
@@ -69,11 +75,17 @@ These tags are frozen because their upstream distributions are end of life:
 - `amazonlinux-2`
 - `centos-7`
 - `debian-10`
+- `debian-11`
 - `fedora-39`
 - `fedora-40`
 - `fedora-41`
+- `oraclelinux-7`
 
-They stay published so existing pipelines keep working, but they are no longer rebuilt on the weekly schedule. They are rebuilt only when their own Dockerfile changes, so their contents age and may contain unpatched CVEs. Use them for legacy testing only, and prefer a supported tag for anything new. The weekly schedule and the change detection that selects which images are built are described in `.github/workflows/build-and-push.yml`.
+They stay published so existing pipelines keep working, but they are no longer rebuilt on the weekly schedule. They are rebuilt only when their own Dockerfile changes, so their contents age and may contain unpatched CVEs. Use them for legacy testing only, and prefer a supported tag for anything new. `debian-11` is built against `archive.debian.org`, because its repositories were removed from the regular Debian mirrors. The weekly schedule and the change detection that selects which images are built are described in `.github/workflows/build-and-push.yml`.
+
+## Pinning
+
+Tags are rebuilt weekly (end-of-life tags excepted, see above), so a tag such as `debian-12` moves over time as packages and base images are updated. Dated tags of the form `<distro-version>-YYYYMMDD` (for example `debian-12-20261017`) are also published. Use a dated tag when you need a reproducible image.
 
 ## Usage
 
@@ -185,7 +197,7 @@ Releases are generated with semantic-release and conventional commits.
 
 ## Maintenance notes
 
-- Dependabot is configured only for GitHub Actions updates.
+- Dependabot is configured for GitHub Actions and for the Docker base images in the distro directories. Major and minor base image bumps are ignored, because the supported versions are defined by `.github/matrix.json`.
 - GHCR packages are published from GitHub Actions with `GITHUB_TOKEN` and linked back to this repository through OCI source metadata.
 - If Docker Hub description sync reports `Not Found`, confirm that the target Docker Hub repository exists and that the configured credentials can update its metadata.
 

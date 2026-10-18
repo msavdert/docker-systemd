@@ -1,0 +1,83 @@
+name: Security scan
+
+# Report-only Trivy scan of the published images. Findings land in the code
+# scanning alerts (one category per tag); the workflow does not fail on them.
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  packages: read
+
+concurrency:
+  group: security-scan
+  cancel-in-progress: false
+
+env:
+  IMAGE_REPOSITORY: ghcr.io/msavdert/docker-systemd
+
+jobs:
+  matrix:
+    name: Read tags
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
+    steps:
+      - name: Checkout the codebase
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select non-EOL tags
+        id: tags
+        run: |
+          tags="$(jq -c '[.[] | select(.eol != true) | .tag]' .github/matrix.json)"
+          if [ "$(jq 'length' <<<"${tags}")" -eq 0 ]; then
+            echo "::error::No non-EOL tags found in .github/matrix.json"
+            exit 1
+          fi
+          echo "tags=${tags}" >> "${GITHUB_OUTPUT}"
+
+  scan:
+    name: Scan ${{ matrix.tag }}
+    needs: matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJSON(needs.matrix.outputs.tags) }}
+    steps:
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: echo "${GHCR_TOKEN}" | docker login ghcr.io --username "${GHCR_USER}" --password-stdin
+
+      - name: Pull image
+        env:
+          IMAGE_TAG: ${{ matrix.tag }}
+        run: docker pull "${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/msavdert/docker-systemd:${{ matrix.tag }}
+          format: sarif
+          output: trivy-${{ matrix.tag }}.sarif
+          severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Upload SARIF to code scanning
+        if: ${{ !cancelled() && hashFiles(format('trivy-{0}.sarif', matrix.tag)) != '' }}
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: trivy-${{ matrix.tag }}.sarif
+          category: trivy-${{ matrix.tag }}

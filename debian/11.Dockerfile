@@ -5,7 +5,12 @@ LABEL maintainer="Melih Savdert"
 ENV container=docker \
     DEBIAN_FRONTEND=noninteractive
 
-RUN INSTALL_PKGS='findutils iproute2 python3 python3-apt sudo systemd' \
+# Debian 11 is end of life: its repositories moved to archive.debian.org.
+RUN printf '%s\n' \
+    'deb http://archive.debian.org/debian bullseye main' \
+    'deb http://archive.debian.org/debian-security bullseye-security main' \
+    > /etc/apt/sources.list \
+    && INSTALL_PKGS='findutils iproute2 python3 python3-apt sudo systemd' \
     && apt-get update \
     && apt-get install -y --no-install-recommends $INSTALL_PKGS \
     && apt-get clean \
