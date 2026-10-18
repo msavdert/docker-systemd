@@ -18,7 +18,7 @@ concurrency:
 jobs:
   record:
     name: Record Docker Hub counts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write

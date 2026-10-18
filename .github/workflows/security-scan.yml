@@ -23,7 +23,7 @@ env:
 jobs:
   matrix:
     name: Read tags
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       tags: ${{ steps.tags.outputs.tags }}
@@ -46,7 +46,7 @@ jobs:
   scan:
     name: Scan ${{ matrix.tag }}
     needs: matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false

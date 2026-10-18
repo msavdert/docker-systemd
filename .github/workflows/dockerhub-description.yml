@@ -12,17 +12,17 @@ on:
 jobs:
   dockerhub-description:
     name: Update DockerHub Description
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       DOCKERHUB_REPOSITORY: melihsavdert/docker-systemd
     steps:
       - name: Checkout the codebase
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: DockerHub Description
         id: dockerhub_description
         continue-on-error: true
-        uses: peter-evans/dockerhub-description@v5
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -33,6 +33,8 @@ jobs:
       - name: Explain DockerHub sync failure
         if: ${{ steps.dockerhub_description.outcome == 'failure' }}
         run: |
-          echo "Docker Hub description sync did not complete." >> "$GITHUB_STEP_SUMMARY"
-          echo "Expected repository: $DOCKERHUB_REPOSITORY" >> "$GITHUB_STEP_SUMMARY"
-          echo "Confirm the repository exists on Docker Hub and that DOCKERHUB_USERNAME/DOCKERHUB_TOKEN can update its metadata." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "Docker Hub description sync did not complete."
+            echo "Expected repository: $DOCKERHUB_REPOSITORY"
+            echo "Confirm the repository exists on Docker Hub and that DOCKERHUB_USERNAME/DOCKERHUB_TOKEN can update its metadata."
+          } >> "$GITHUB_STEP_SUMMARY"

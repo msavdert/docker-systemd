@@ -37,7 +37,9 @@ env:
 jobs:
   prepare:
     name: Prepare build matrix
-    runs-on: ubuntu-latest
+    # Pinned: systemd-in-container smoke tests depend on host kernel, cgroup and Docker
+    # behaviour, so a silent ubuntu-latest OS change must not alter them.
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       is-empty: ${{ steps.matrix.outputs.is-empty }}
@@ -98,7 +100,7 @@ jobs:
     name: Build and push ${{ matrix.tag }}
     needs: prepare
     if: needs.prepare.outputs.is-empty != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -289,7 +291,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=${{ env.IMAGE_DESCRIPTION }}
-            org.opencontainers.image.licenses=GPL-3.0
+            org.opencontainers.image.licenses=GPL-3.0-or-later
             org.opencontainers.image.title=systemd-${{ matrix.tag }}
             org.opencontainers.image.created=${{ steps.meta.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -320,7 +322,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=${{ env.IMAGE_DESCRIPTION }}
-            org.opencontainers.image.licenses=GPL-3.0
+            org.opencontainers.image.licenses=GPL-3.0-or-later
             org.opencontainers.image.title=systemd-${{ matrix.tag }}
             org.opencontainers.image.created=${{ steps.meta.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -342,7 +344,7 @@ jobs:
       - prepare
       - docker
     if: failure() && github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       actions: read # list the failed jobs of this run
       issues: write
